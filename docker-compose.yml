@@ -1,0 +1,203 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: smartcourier_bootstrap
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docs/init-multiple-dbs.sql:/docker-entrypoint-initdb.d/init-multiple-dbs.sql
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  zipkin:
+    image: openzipkin/zipkin:3.4.3
+    ports:
+      - "9411:9411"
+    environment:
+      STORAGE_TYPE: mem
+
+  # Code quality — independent of app services; first start can take 2–4 min (indexing).
+  sonarqube:
+    image: sonarqube:lts-community
+    hostname: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      # Dev Docker only — relaxes embedded search checks (do not use in production).
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+      SONAR_TELEMETRY_ENABLE: "false"
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-extensions:/opt/sonarqube/extensions
+      - sonarqube-logs:/opt/sonarqube/logs
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
+      nproc: 8192
+
+  discovery-server:
+    build:
+      context: .
+      dockerfile: discovery-server/Dockerfile
+    ports:
+      - "8761:8761"
+
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    environment:
+      CONFIG_SERVER_PROFILE: ${CONFIG_SERVER_PROFILE:-native}
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+      CONFIG_REPO_URI: ${CONFIG_REPO_URI:-https://github.com/your-org/smart-courier-config.git}
+      CONFIG_REPO_DEFAULT_LABEL: ${CONFIG_REPO_DEFAULT_LABEL:-main}
+      CONFIG_REPO_USERNAME: ${CONFIG_REPO_USERNAME:-}
+      CONFIG_REPO_PASSWORD: ${CONFIG_REPO_PASSWORD:-}
+    depends_on:
+      - discovery-server
+    ports:
+      - "8888:8888"
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    environment:
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_PROBABILITY: ${TRACING_SAMPLE_PROBABILITY:-1}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: smartcourier_auth
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_USE_SSL: ${DB_USE_SSL:-false}
+      JWT_SECRET: SmartCourierSecretKeyForJwtTokenGeneration123456
+      RABBITMQ_HOST: rabbitmq
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    depends_on:
+      - mysql
+      - rabbitmq
+      - zipkin
+      - discovery-server
+      - config-server
+    ports:
+      - "8081:8081"
+
+  delivery-service:
+    build:
+      context: .
+      dockerfile: delivery-service/Dockerfile
+    environment:
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_PROBABILITY: ${TRACING_SAMPLE_PROBABILITY:-1}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: smartcourier_delivery
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_USE_SSL: ${DB_USE_SSL:-false}
+      JWT_SECRET: SmartCourierSecretKeyForJwtTokenGeneration123456
+      RABBITMQ_HOST: rabbitmq
+      PAYMENT_GATEWAY_URL: http://delivery-service:8082
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    depends_on:
+      - mysql
+      - rabbitmq
+      - zipkin
+      - auth-service
+      - discovery-server
+      - config-server
+    ports:
+      - "8082:8082"
+
+  tracking-service:
+    build:
+      context: .
+      dockerfile: tracking-service/Dockerfile
+    environment:
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_PROBABILITY: ${TRACING_SAMPLE_PROBABILITY:-1}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: smartcourier_tracking
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_USE_SSL: ${DB_USE_SSL:-false}
+      JWT_SECRET: SmartCourierSecretKeyForJwtTokenGeneration123456
+      RABBITMQ_HOST: rabbitmq
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    depends_on:
+      - mysql
+      - rabbitmq
+      - zipkin
+      - delivery-service
+      - discovery-server
+      - config-server
+    ports:
+      - "8083:8083"
+
+  admin-service:
+    build:
+      context: .
+      dockerfile: admin-service/Dockerfile
+    environment:
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_PROBABILITY: ${TRACING_SAMPLE_PROBABILITY:-1}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: smartcourier_admin
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_USE_SSL: ${DB_USE_SSL:-false}
+      JWT_SECRET: SmartCourierSecretKeyForJwtTokenGeneration123456
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    depends_on:
+      - mysql
+      - zipkin
+      - delivery-service
+      - tracking-service
+      - discovery-server
+      - config-server
+    ports:
+      - "8084:8084"
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    environment:
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_PROBABILITY: ${TRACING_SAMPLE_PROBABILITY:-1}
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    depends_on:
+      - zipkin
+      - auth-service
+      - delivery-service
+      - tracking-service
+      - admin-service
+      - discovery-server
+      - config-server
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql-data:
+  sonarqube-data:
+  sonarqube-extensions:
+  sonarqube-logs:

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCourier Gateway Navigator</title>
+    <style>
+        :root {
+            --bg: #f5efe6;
+            --panel: #fffaf4;
+            --ink: #1f2937;
+            --muted: #6b7280;
+            --accent: #b45309;
+            --accent-strong: #92400e;
+            --border: #e5d7c8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(245, 158, 11, 0.18), transparent 28%),
+                radial-gradient(circle at bottom right, rgba(180, 83, 9, 0.16), transparent 24%),
+                var(--bg);
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .card {
+            width: min(720px, 100%);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 22px 60px rgba(31, 41, 55, 0.12);
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: clamp(28px, 5vw, 42px);
+        }
+
+        p {
+            margin: 0 0 18px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .grid {
+            display: grid;
+            gap: 14px;
+            margin-top: 24px;
+        }
+
+        label {
+            font-weight: 600;
+        }
+
+        select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            font-size: 16px;
+            background: #fff;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        button, a.quick-link {
+            border: none;
+            border-radius: 14px;
+            padding: 13px 18px;
+            font-size: 15px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        button.primary:hover {
+            background: var(--accent-strong);
+        }
+
+        a.quick-link {
+            background: #fff;
+            color: var(--ink);
+            border: 1px solid var(--border);
+        }
+
+        .hint {
+            margin-top: 20px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: #fff;
+            border: 1px dashed var(--border);
+            color: var(--muted);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>SmartCourier Gateway</h1>
+    <p>Use this page as a single starting point. You can jump to service Swagger pages or open important API-gateway endpoints from one place.</p>
+
+    <div class="grid">
+        <label for="destination">Choose where to navigate</label>
+        <select id="destination">
+            <option value="http://localhost:8081/swagger-ui.html">Auth Swagger</option>
+            <option value="http://localhost:8082/swagger-ui.html">Delivery Swagger</option>
+            <option value="http://localhost:8083/swagger-ui.html">Tracking Swagger</option>
+            <option value="http://localhost:8084/swagger-ui.html">Admin Swagger</option>
+            <option value="/gateway/services">Gateway: Supported Services</option>
+            <option value="http://localhost:8761">Eureka Dashboard</option>
+            <option value="http://localhost:8888/gateway-service/default">Config Server View</option>
+        </select>
+
+        <div class="actions">
+            <button class="primary" type="button" onclick="navigateToSelected()">Open Selected</button>
+            <a class="quick-link" href="/gateway/services">Gateway Services API</a>
+            <a class="quick-link" href="http://localhost:8081/swagger-ui.html">Auth Swagger</a>
+            <a class="quick-link" href="http://localhost:8082/swagger-ui.html">Delivery Swagger</a>
+        </div>
+    </div>
+
+    <div class="hint">
+        Tip: open this page at <strong>http://localhost:8080</strong>. After logging in through Auth Swagger, use the token in the other Swagger pages through their <strong>Authorize</strong> button.
+    </div>
+</div>
+
+<script>
+    function navigateToSelected() {
+        const select = document.getElementById('destination');
+        const target = select.value;
+        window.location.href = target;
+    }
+</script>
+</body>
+</html>

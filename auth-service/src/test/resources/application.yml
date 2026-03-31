@@ -1,0 +1,7 @@
+# Sliced tests still need optional config import (Spring Cloud); disable trace export
+spring:
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+management:
+  tracing:
+    enabled: false

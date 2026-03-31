@@ -1,0 +1,68 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  cloud:
+    gateway:
+      server:
+        webflux:
+          observation-enabled: true
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/gateway/auth/**
+          filters:
+            - RewritePath=/gateway/auth/(?<segment>.*), /api/auth/${segment}
+        - id: delivery-service-services
+          uri: lb://delivery-service
+          predicates:
+            - Path=/gateway/services
+          filters:
+            - SetPath=/api/deliveries/services
+        - id: delivery-service
+          uri: lb://delivery-service
+          predicates:
+            - Path=/gateway/deliveries/**
+          filters:
+            - RewritePath=/gateway/deliveries/(?<segment>.*), /api/deliveries/${segment}
+        - id: tracking-service
+          uri: lb://tracking-service
+          predicates:
+            - Path=/gateway/tracking/**
+          filters:
+            - RewritePath=/gateway/tracking/(?<segment>.*), /api/tracking/${segment}
+        - id: admin-service
+          uri: lb://admin-service
+          predicates:
+            - Path=/gateway/admin/**
+          filters:
+            - RewritePath=/gateway/admin/(?<segment>.*), /api/admin/${segment}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+
+management:
+  tracing:
+    enabled: ${TRACING_ENABLED:true}
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://127.0.0.1:9411/api/v2/spans}
+      connect-timeout: 1s
+      read-timeout: 10s
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
